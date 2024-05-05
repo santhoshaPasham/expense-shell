@@ -8,6 +8,9 @@ R="\e[31m"
 G="\e[32m"
 N="\e[0m"
 
+echo "Please enter password"
+read -s root_password
+
 if [ $USERID -ne 0 ]
 then 
     echo "Please run this command with root access"
@@ -48,23 +51,41 @@ else
     echo -e "Already user exists $Y Skipping $N"
 fi 
 
-mkdir -p /app
+mkdir -p /app &>>$LOGFILE
 VALIDATE $? "Creating app directory"
 
 
-curl -o /tmp/backend.zip https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip
+curl -o /tmp/backend.zip https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip &>>$LOGFILE
 VALIDATE $? "Downloading backend code"
 
 cd /app
 
-unzip /tmp/backend.zip
+unzip /tmp/backend.zip &>>$LOGFILE
 VALIDATE $? "Extracted backend code"
 
-npm install 
+npm install &>>$LOGFILE
 VALIDATE $? "Installing nodejs dependencies"
 
+cp /home/ec2-user/expense-shell/backend.service /etc/systemd/system/backend.service &>>$LOGFILE
+VALIDATE $? "Coped backend service"
 
+systemctl daemon-reload &>>$LOGFILE
+VALIDATE $? "Daemon reload"
 
+systemctl start backend &>>$LOGFILE
+VALIDATE  $? "Starting backend"
+
+systemctl enable backend &>>$LOGFILE
+VALIDATE $? "Enabling backend"
+
+dnf install mysql -y &>>$LOGFILE
+VALIDATE $? "Install mysql client"
+
+mysql -h  db.daws9.online -uroot -p${root_password} < /app/schema/backend.sql &>>$LOGFILE
+VALIDATE $? "Schema loading"
+
+systemctl restart backend &>>$LOGFILE
+VALIDATE $? "Restart backend"
 
 
 
